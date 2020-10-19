@@ -1,0 +1,282 @@
+<!-- Card superior -->
+<div>
+  <div class="collection">
+    <a
+      class="collection-item avatar"
+      style="padding-left: 94px; background-color: #839cc8"
+    >
+      <img
+        src="{{ user.picture }}"
+        alt=""
+        class="circle"
+        style="width: 64px; height: 64px; color: #1b2b46"
+      />
+      <span class="title" style="color: #1b2b46">{{ user.name }}</span>
+    </a>
+  </div>
+</div>
+<!-- caixa de pesquisa e botão de adicionar contato -->
+<div style="align-items: center; display: flex">
+  <!-- <div class="input-field" style="flex: 1; margin-right: 10px"> -->
+  <input
+    id="last_name"
+    placeholder="Pesquisar contato"
+    style="
+      background-color: #fff;
+      border-radius: calc(0.5 * 51px);
+      padding-inline-start: 15px;
+      padding-inline-end: 15px;
+    "
+    type="text"
+    class="validate"
+  />
+  <!-- <label for="last_name">Pesquisar contato</label> -->
+  <!-- </div> -->
+  <!-- <div class="input-field" style="align-items: center; display: flex"> -->
+  <a
+    class="waves-effect waves-light btn modal-trigger"
+    href="#add-contact"
+    style="margin: 0 0 8px 8px"
+    ><i class="material-icons">person_add</i></a
+  >
+  <!-- </div> -->
+</div>
+<!-- modal de adicionar contato -->
+<div id="add-contact" class="modal">
+  <div class="modal-content" id="add-contact-content"></div>
+</div>
+<!-- lista de contatos -->
+<div>
+  {{#if contacts}}
+  <div class="collection">
+    {{#each contacts}}
+    <a
+      class="collection-item avatar modal-trigger"
+      href="#{{ _id }}"
+      style="height: 62px; min-height: 0px; background-color: #839cc8"
+    >
+      <img src="{{ picture }}" alt="" class="circle" />
+      <span class="title" style="color: #1b2b46">{{ name }}</span>
+    </a>
+    <div
+      id="{{ _id }}"
+      class="modal modal-fixed-footer"
+      style="
+        background-color: #839cc8;
+        border-radius: 10px;
+        height: 90%;
+        width: 90%;
+      "
+    >
+      <div
+        class="modal-footer"
+        style="
+          background-color: #839cc8;
+          height: 70px;
+          text-align: start;
+          top: 0;
+        "
+      >
+        <a
+          class="collection-item avatar"
+          style="background-color: #839cc8; height: 62px; min-height: 0px"
+        >
+          <img src="{{ picture }}" alt="" class="circle" />
+          <span class="title" style="color: #1b2b46">{{ name }}</span>
+        </a>
+      </div>
+      <div
+        class="modal-content"
+        style="
+          background-color: #91a8d0;
+          border-radius: 10px;
+          height: calc(100% - 138px);
+          margin: 6px;
+          padding: 5%;
+          top: 70px;
+          width: calc(100% - 12px);
+        "
+      >
+        <div id="{{ _id }}-content"></div>
+      </div>
+      <div
+        class="modal-footer"
+        style="background-color: #839cc8; border-top-width: 0"
+      >
+        <form id="{{ _id }}-form" style="display: flex">
+          <!-- <div class="input-field" style="flex: 1; margin-right: 10px"> -->
+          <input
+            id="{{ _id }}-message"
+            placeholder="Digite uma mensagem"
+            style="
+              background-color: #fff;
+              border-radius: calc(0.5 * 51px);
+              padding-inline-start: 15px;
+              padding-inline-end: 15px;
+            "
+            type="text"
+            class="validate"
+          />
+          <!-- <label for="{{ _id }}-message">Sua mensagem</label> -->
+          <!-- </div> -->
+          <!-- <div class="input-field" style="align-items: center; display: flex">
+            <button class="btn waves-effect waves-light" type="submit">
+              <i class="material-icons">send</i>
+            </button>
+          </div> -->
+        </form>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{else}}
+  <p>Não há contatos disponíveis.</p>
+  {{/if}}
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/ckeditor/4.14.1/ckeditor.js"
+  integrity="sha256-bEIQpI72w9NJuIVhTLFUF2/8uxl0u5800r8ddViuv+o="
+  crossorigin="anonymous"
+></script>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+  const socket = io();
+  socket.emit('joinRoom', { user: '{{user._id}}' });
+
+  socket.on('notify', (message) => {
+    M.toast({ html: message });
+  });
+
+  socket.on('refreshDashboard', () => {
+    window.location.reload();
+  });
+
+  socket.on('newMessage', ({ fullMessage, alert }) => {
+    if (
+      M.Modal.getInstance(document.getElementById(fullMessage.sender)).isOpen
+    ) {
+      const content = document.getElementById(`${fullMessage.sender}-content`);
+      insertMessage(fullMessage.body, content);
+      // content.scrollTop = content.scrollHeight;
+      content.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    } else {
+      M.toast({ html: alert });
+    }
+  });
+
+  socket.on('renderContacts', ({ users }) => {
+    const addContactContent = document.getElementById('add-contact-content');
+
+    if (users.length) {
+      const collection = document.createElement('div');
+      collection.classList.add('collection');
+
+      users.forEach((user) => {
+        const a = document.createElement('a');
+        a.classList.add('collection-item');
+        a.classList.add('avatar');
+        a.style.height = '62px';
+        a.style.minHeight = '0px';
+        a.backgroundColor = 'background-color: #839cc8';
+
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          socket.emit('addContact', {
+            userId: '{{user._id}}',
+            contactId: user._id.toString(),
+          });
+        });
+
+        a.innerHTML = `
+          <img src="${user.picture}" alt="" class="circle" />
+          <span class="title" style="color: #1b2b46">${user.name}</span>
+        `;
+
+        collection.appendChild(a);
+      });
+      addContactContent.appendChild(collection);
+    } else {
+      addContactContent.innerHTML = `
+        <p>Não há usuários disponíveis.</p>
+      `;
+    }
+  });
+
+  socket.on('renderMessages', ({ messages, contactId }) => {
+    const content = document.getElementById(`${contactId}-content`);
+
+    messages.forEach((message) => {
+      insertMessage(message.body, content, message.sender === '{{user._id}}');
+    });
+
+    content.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  });
+
+  const insertMessage = (message, content, owner) => {
+    const div = document.createElement('div');
+    div.classList.add('message');
+    div.style.padding = '5px';
+    const span = document.createElement('span');
+    span.style.backgroundColor = '#afc0dd';
+    span.style.padding = '5px';
+    span.style.color = '#494a4d';
+    span.style.borderRadius = '15px';
+    span.style.paddingInlineStart = '10px';
+    span.style.paddingInlineEnd = '10px';
+    span.style.display = 'inline-block';
+
+    if (owner) {
+      div.style.textAlign = 'right';
+    }
+
+    span.classList.add('text');
+    span.innerText = message;
+    div.appendChild(span);
+    content.appendChild(div);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    M.Sidenav.init(document.querySelector('.sidenav'));
+    M.FormSelect.init(document.querySelector('#status'));
+
+    M.Modal.init(document.querySelectorAll('.modal'), {
+      onCloseStart: (modal, button) => {
+        document.getElementById(`${modal.id}-content`).innerHTML = '';
+      },
+      onOpenEnd: (modal, button) => {
+        if (modal.id !== 'add-contact') {
+          document
+            .getElementById(`${modal.id}-form`)
+            .addEventListener('submit', (e) => {
+              e.preventDefault();
+              const content = document.getElementById(`${modal.id}-content`);
+              insertMessage(e.target[0].value, content, true);
+              // content.scrollTop = content.scrollHeight;
+              content.scrollIntoView({ block: 'end', behavior: 'smooth' });
+
+              socket.emit('sendMessage', {
+                contactId: modal.id,
+                userId: '{{user._id}}',
+                message: e.target[0].value,
+              });
+
+              e.target[0].value = null;
+            });
+        }
+      },
+      onOpenStart: (modal, button) => {
+        if (modal.id === 'add-contact') {
+          socket.emit('fetchContacts', { userId: '{{user._id}}' });
+        } else {
+          socket.emit('openDialog', {
+            contactId: modal.id,
+            userId: '{{user._id}}',
+          });
+        }
+      },
+    });
+  });
+</script>
